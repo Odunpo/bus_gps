@@ -1,0 +1,46 @@
+image:
+  name: "$CI_TEMPLATE_REGISTRY_HOST/gitlab-org/terraform-images/releases/1.4:v1.0.0"
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+
+cache:
+  key: "${TF_ROOT}"
+  paths:
+    - ${TF_ROOT}/.terraform/
+
+.terraform:fmt:
+  stage: validate
+  script:
+    - gitlab-terraform fmt
+  allow_failure: true
+
+.terraform:validate:
+  stage: validate
+  script:
+    - gitlab-terraform validate
+
+.terraform:build:
+  script:
+    - gitlab-terraform plan -var-file=variables_${TF_STATE_NAME}.tfvars
+    - gitlab-terraform plan-json -var-file=variables_${TF_STATE_NAME}.tfvars
+  artifacts:
+    public: false
+    paths:
+      - ${TF_ROOT}/plan_${TF_STATE_NAME}.cache
+    reports:
+      terraform: ${TF_ROOT}/plan_${TF_STATE_NAME}.json
+
+.terraform:deploy:
+  script:
+    - gitlab-terraform apply
+  when: manual
+
+.terraform:destroy-ignore-certificate:
+  script:
+    - |
+      if gitlab-terraform state list | grep -q "module.route53.aws_acm_certificate.api"; then
+        gitlab-terraform state rm module.route53.aws_acm_certificate.api
+      fi
+    - gitlab-terraform destroy
+  when: manual

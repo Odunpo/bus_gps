@@ -1,0 +1,14 @@
+variable "aws_region" {}
+variable "api_name" {}
+variable "api_stage_name" {}
+variable "api_post_gps_resource_path" {}
+variable "api_get_gps_resource_path" {}
+variable "api_role_name" {}
+variable "api_policy_name" {}
+variable "kinesis_arn" {}
+variable "lambda_kinesis_invoke_arn" {}
+variable "lambda_kinesis_function_name" {}
+variable "lambda_get_coordinates_invoke_arn" {}
+variable "lambda_get_coordinates_function_name" {}
+variable "api_authorizer_name" {}
+variable "api_cognito_user_pool_arn" {}

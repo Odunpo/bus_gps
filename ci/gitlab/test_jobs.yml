@@ -1,0 +1,16 @@
+.test:
+  image: python:3.8-slim
+  stage: test
+  services:
+    - name: amazon/dynamodb-local:1.21.0
+      alias: dynamodb
+  before_script:
+    - pip install --no-cache-dir -r requirements-tests.txt
+  script:
+    - pytest
+  variables:
+    DYNAMODB_TABLE_NAME: Test
+    DYNAMODB_HOST: dynamodb
+    DYNAMODB_PORT: 8000
+    TTL_SECONDS: 3600
+    TTL_FIELD_NAME: expirationTime

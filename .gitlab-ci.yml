@@ -1,0 +1,176 @@
+include:
+ - {local: "ci/gitlab/*.yml"}
+
+stages:
+  - lint
+  - test
+  - validate
+  - build-sandbox
+  - deploy-sandbox
+  - cleanup-sandbox
+  - build-staging
+  - deploy-staging
+  - cleanup-staging
+  - build-production
+  - deploy-production
+  - cleanup-production
+
+variables:
+  SANDBOX_ENV: sandbox
+  STAGING_ENV: staging
+  PRODUCTION_ENV: production
+  TF_STATE_NAME_SANDBOX: sandbox
+  TF_STATE_NAME_STAGING: staging
+  TF_STATE_NAME_PRODUCTION: production
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+      when: always
+
+.merge_request_event_always: &merge_request_event_always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+
+.merge_request_event_manual: &merge_request_event_manual
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+
+.after_merge_request_always: &after_merge_request_always
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+
+.after_merge_request_manual: &after_merge_request_manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+
+.sandbox_env_config: &sandbox_env_config
+  environment: $SANDBOX_ENV
+  resource_group: $SANDBOX_ENV
+  variables:
+   TF_STATE_NAME: $TF_STATE_NAME_SANDBOX
+   TF_PLAN_CACHE: ${TF_ROOT}/plan_${TF_STATE_NAME_SANDBOX}.cache
+   TF_PLAN_JSON: ${TF_ROOT}/plan_${TF_STATE_NAME_SANDBOX}.json
+
+.staging_env_config: &staging_env_config
+  environment: $STAGING_ENV
+  resource_group: $STAGING_ENV
+  variables:
+   TF_STATE_NAME: $TF_STATE_NAME_STAGING
+   TF_PLAN_CACHE: ${TF_ROOT}/plan_${TF_STATE_NAME_STAGING}.cache
+   TF_PLAN_JSON: ${TF_ROOT}/plan_${TF_STATE_NAME_STAGING}.json
+
+.production_env_config: &production_env_config
+  environment: $PRODUCTION_ENV
+  resource_group: $PRODUCTION_ENV
+  variables:
+   TF_STATE_NAME: $TF_STATE_NAME_PRODUCTION
+   TF_PLAN_CACHE: ${TF_ROOT}/plan_${TF_STATE_NAME_PRODUCTION}.cache
+   TF_PLAN_JSON: ${TF_ROOT}/plan_${TF_STATE_NAME_PRODUCTION}.json
+
+lint-flake8:
+  extends: .lint-flake8
+  <<: *merge_request_event_always
+
+local-test:
+  extends: .test
+  <<: *merge_request_event_always
+
+kics-test:
+  extends: .kics-iac-sast
+
+fmt:
+  extends: .terraform:fmt
+  <<: *merge_request_event_always
+
+validate:
+  extends: .terraform:validate
+  <<: *sandbox_env_config
+  <<: *merge_request_event_always
+
+build-sandbox:
+  stage: build-sandbox
+  extends: .terraform:build
+  artifacts:
+   paths:
+    - ${CI_PROJECT_DIR}/lambda_kinesis_consumer.zip
+    - ${CI_PROJECT_DIR}/lambda_get_coordinates.zip
+    - ${TF_ROOT}/plan_${TF_STATE_NAME_SANDBOX}.cache
+  <<: *sandbox_env_config
+  <<: *merge_request_event_always
+
+deploy-sandbox:
+  stage: deploy-sandbox
+  extends: .terraform:deploy
+  dependencies:
+    - build-sandbox
+  <<: *sandbox_env_config
+  <<: *merge_request_event_manual
+
+cleanup-sandbox:
+  stage: cleanup-sandbox
+  extends: .terraform:destroy-ignore-certificate
+  dependencies:
+    - deploy-sandbox
+  <<: *sandbox_env_config
+  <<: *merge_request_event_manual
+
+build-staging:
+  stage: build-staging
+  extends: .terraform:build
+  artifacts:
+   paths:
+    - ${CI_PROJECT_DIR}/lambda_kinesis_consumer.zip
+    - ${CI_PROJECT_DIR}/lambda_get_coordinates.zip
+    - ${TF_ROOT}/plan_${TF_STATE_NAME_STAGING}.cache
+  <<: *staging_env_config
+  <<: *after_merge_request_always
+
+deploy-staging:
+  stage: deploy-staging
+  extends: .terraform:deploy
+  dependencies:
+    - build-staging
+  <<: *staging_env_config
+  <<: *after_merge_request_manual
+
+cleanup-staging:
+  stage: cleanup-staging
+  extends: .terraform:destroy-ignore-certificate
+  dependencies:
+    - deploy-staging
+  <<: *staging_env_config
+  <<: *after_merge_request_manual
+
+build-production:
+  stage: build-production
+  extends: .terraform:build
+  artifacts:
+   paths:
+    - ${CI_PROJECT_DIR}/lambda_kinesis_consumer.zip
+    - ${CI_PROJECT_DIR}/lambda_get_coordinates.zip
+    - ${TF_ROOT}/plan_${TF_STATE_NAME_PRODUCTION}.cache
+  <<: *production_env_config
+  <<: *after_merge_request_manual
+
+deploy-production:
+  stage: deploy-production
+  extends: .terraform:deploy
+  dependencies:
+    - build-production
+  <<: *production_env_config
+  <<: *after_merge_request_manual
+
+cleanup-production:
+  stage: cleanup-production
+  extends: .terraform:destroy-ignore-certificate
+  dependencies:
+    - deploy-production
+  <<: *production_env_config
+  <<: *after_merge_request_manual

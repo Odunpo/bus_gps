@@ -1,0 +1,27 @@
+[flake8]
+
+# flake8-quotes
+inline-quotes = "
+multiline-quotes = """
+
+# flake8 basics
+count=True
+statistics=True
+show-source=True
+max-line-length=79
+require-plugins =
+    flake8-builtins
+    flake8-quotes
+
+
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    .venv,
+    venv,
+    ci,
+    .pytest_cache
+    .mypy_cache
+max-complexity = 10

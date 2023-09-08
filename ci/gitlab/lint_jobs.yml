@@ -1,0 +1,7 @@
+.lint-flake8:
+  image: python:3.8-slim
+  stage: lint
+  before_script:
+    - pip install --no-cache-dir -r requirements-lint.txt
+  script:
+    - flake8
