@@ -1,6 +1,5 @@
 # Streaming data serverless REST API using AWS, Terraform, and Gitlab CI
 
-## This simple project is an example of how to build a scalable REST API with Kinesis in AWS
 This project deploys a serverless solution for streaming data, specifically bus GPS coordinates data,
 using Kinesis Data Streams. It utilizes Terraform as an Infrastructure as Code (IaC) framework, with the
 Terraform code organized into AWS service-based modules. The CI/CD pipeline is built on GitLab CI and deploys the
